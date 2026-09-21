@@ -26,7 +26,7 @@
     <div class="panel-head">
       <div>
         <h2>Calendar</h2>
-        <p>Click a planned day to open details, or click an empty available day to add something.</p>
+        <p>Click a planned day to open details, or click + to add something.</p>
       </div>
       <div class="legend">
         <span><i class="dot work"></i>Jen working</span>
@@ -35,11 +35,45 @@
         <span><i class="dot local"></i>Holiday / local</span>
       </div>
     </div>
+
     <div class="calendar-wrap">
       <div class="weekday-row"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div></div>
       <div id="calendar" class="calendar"></div>
     </div>
+
     <div id="tripCards" class="trip-cards"></div>
+
+    <section class="wish-section">
+      <div class="wish-head">
+        <div>
+          <div class="eyebrow">IDEA INBOX</div>
+          <h2>Make a wish ✨</h2>
+          <p>Dump anything you want to do here first. No date required.</p>
+        </div>
+        <div class="wish-count"><strong id="openWishCount">0</strong><span>open wishes</span></div>
+      </div>
+
+      <form id="wishForm" class="wish-form">
+        <input id="wishTitle" maxlength="90" placeholder="I want to..." required>
+        <select id="wishCategory">
+          <option value="activity">Activity</option>
+          <option value="food">Food</option>
+          <option value="trip">Trip</option>
+          <option value="shopping">Shopping</option>
+          <option value="other">Other</option>
+        </select>
+        <textarea id="wishNotes" rows="2" maxlength="300" placeholder="Optional details, place, link idea, etc."></textarea>
+        <button type="submit">Add wish</button>
+      </form>
+
+      <div class="wish-toolbar">
+        <button id="showOpenWishes" type="button" class="filter active">Open</button>
+        <button id="showResolvedWishes" type="button" class="filter">Planned</button>
+        <button id="showAllWishes" type="button" class="filter">All</button>
+      </div>
+
+      <div id="wishList" class="wish-list"></div>
+    </section>
   </section>
 
   <aside class="detail-panel">
@@ -67,6 +101,7 @@
 
     <form id="addForm" class="editor hidden">
       <h3>Add a plan</h3>
+      <input id="sourceWishId" type="hidden">
       <label>Date<input id="addDate" type="date" min="2026-11-04" max="2026-12-10" required></label>
       <label>
         Type
