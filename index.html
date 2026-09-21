@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jen November Visit Planner</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <div class="eyebrow">DREAM TRAVEL LIFE</div>
+    <h1>Jen Visit Planner</h1>
+    <p>Nov 4 – Dec 10, 2026 · trips, PTO, activities and notes</p>
+  </div>
+  <div class="actions">
+    <button id="exportBtn" class="secondary">Export backup</button>
+    <label class="secondary file-label">Import backup<input id="importInput" type="file" accept="application/json"></label>
+    <button id="resetBtn" class="danger">Reset</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section>
+    <div class="panel-head">
+      <div>
+        <h2>Calendar</h2>
+        <p>Click a planned day to open the trip/event details.</p>
+      </div>
+      <div class="legend">
+        <span><i class="dot work"></i>Jen working</span>
+        <span><i class="dot trip"></i>Trip / PTO</span>
+        <span><i class="dot activity"></i>Activity</span>
+        <span><i class="dot local"></i>Holiday / local</span>
+      </div>
+    </div>
+    <div class="calendar-wrap">
+      <div class="weekday-row"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div></div>
+      <div id="calendar" class="calendar"></div>
+    </div>
+    <div id="tripCards" class="trip-cards"></div>
+  </section>
+
+  <aside class="detail-panel">
+    <div class="detail-head">
+      <div>
+        <div id="detailDate" class="eyebrow">SELECT A PLAN</div>
+        <h2 id="detailTitle">Trip & event details</h2>
+      </div>
+      <span id="detailBadge" class="badge">Planner</span>
+    </div>
+    <p id="detailSummary" class="summary">Choose a trip card or planned date to see the itinerary.</p>
+    <div id="detailItems" class="detail-items"></div>
+
+    <form id="detailForm" class="editor hidden">
+      <input id="editKey" type="hidden">
+      <label>Title<input id="editTitle" maxlength="70" required></label>
+      <label>Notes<textarea id="editSummary" rows="4" maxlength="400" required></textarea></label>
+      <div class="form-actions"><button type="submit">Save details</button><span id="saveMsg"></span></div>
+    </form>
+
+    <div class="pto-card">
+      <h3>PTO plan</h3>
+      <p><strong>Nov 16–18</strong> · Toronto · 3 days</p>
+      <p><strong>Dec 7–10</strong> · final block · 4 days</p>
+      <p><strong>7 / 8 days planned</strong> · 1 flexible PTO day remains</p>
+    </div>
+  </aside>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
