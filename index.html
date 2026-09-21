@@ -44,32 +44,39 @@
     <div id="tripCards" class="trip-cards"></div>
 
     <section class="wish-section">
-      <div class="wish-head">
-        <div>
-          <div class="eyebrow">IDEA INBOX</div>
-          <h2>Make a wish ✨</h2>
-          <p>Dump anything you want to do here first. No date required.</p>
+      <div class="wish-hero">
+        <div class="wish-icon">✨</div>
+        <div class="wish-copy">
+          <div class="eyebrow">JEN'S IDEA INBOX</div>
+          <h2>Make a wish</h2>
+          <p>See something fun? Drop it here. We can figure out the day later.</p>
         </div>
-        <div class="wish-count"><strong id="openWishCount">0</strong><span>open wishes</span></div>
+        <div class="wish-count"><strong id="openWishCount">0</strong><span>waiting</span></div>
       </div>
 
-      <form id="wishForm" class="wish-form">
-        <input id="wishTitle" maxlength="90" placeholder="I want to..." required>
-        <select id="wishCategory">
-          <option value="activity">Activity</option>
-          <option value="food">Food</option>
-          <option value="trip">Trip</option>
-          <option value="shopping">Shopping</option>
-          <option value="other">Other</option>
-        </select>
-        <textarea id="wishNotes" rows="2" maxlength="300" placeholder="Optional details, place, link idea, etc."></textarea>
-        <button type="submit">Add wish</button>
+      <form id="wishForm" class="wish-composer">
+        <div class="wish-prompt">What do you want to do while you're here?</div>
+        <input id="wishTitle" class="wish-title-input" maxlength="90" placeholder="e.g. Go skating, eat hotpot, see Banff..." required>
+        <div class="wish-options">
+          <select id="wishCategory" aria-label="Wish category">
+            <option value="activity">🎯 Activity</option>
+            <option value="food">🍜 Food</option>
+            <option value="trip">🗺️ Trip</option>
+            <option value="shopping">🛍️ Shopping</option>
+            <option value="other">💭 Other</option>
+          </select>
+          <input id="wishNotes" maxlength="300" placeholder="Optional note — place, link, why you want to go...">
+          <button type="submit">Add to wishes <span>→</span></button>
+        </div>
       </form>
 
-      <div class="wish-toolbar">
-        <button id="showOpenWishes" type="button" class="filter active">Open</button>
-        <button id="showResolvedWishes" type="button" class="filter">Planned</button>
-        <button id="showAllWishes" type="button" class="filter">All</button>
+      <div class="wish-board-head">
+        <div class="wish-toolbar">
+          <button id="showOpenWishes" type="button" class="filter active">Waiting</button>
+          <button id="showResolvedWishes" type="button" class="filter">Planned</button>
+          <button id="showAllWishes" type="button" class="filter">All</button>
+        </div>
+        <div class="wish-flow"><span>Wish</span><b>→</b><span>Pick a day</span><b>→</b><span>Planned ✓</span></div>
       </div>
 
       <div id="wishList" class="wish-list"></div>
