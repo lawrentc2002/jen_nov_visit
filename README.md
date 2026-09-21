@@ -1,2 +1,2 @@
 # jen_nov_visit
-Calendar for Jen visit during november
+Calendar for Jen visit during November and December 2026.
