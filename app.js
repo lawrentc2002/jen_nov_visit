@@ -2,36 +2,7 @@
   const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = window.APP_CONFIG;
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-  const seededTrips = {
-    edmonton:{date:"Nov 7–8",badge:"Road trip",title:"Edmonton Staycation",summary:"Low-effort first weekend while Jen adjusts to jet lag. Hotel, spa and shopping are the main point.",items:[["Pura Botanicals","Make-your-own perfume session for two."],["Hotel + spa","JW Marriott preferred; Fairmont Hotel Macdonald as the classic option."],["Sunday · WEM","West Edmonton Mall, MUJI and relaxed shopping."]]},
-    toronto:{date:"Nov 16–18",badge:"3 PTO days",title:"Toronto + Niagara Falls",summary:"Niagara overnight, Markham Chinese food and half a day downtown.",items:[["Mon","YYZ → Niagara"],["Tue","Niagara → Markham → downtown"],["Wed","Half-day downtown → UP Express → YYZ"]]},
-    remembrance:{date:"Nov 11",badge:"Both off",title:"Remembrance Day",summary:"Keep flexible because Jen may work late Nov 10.",items:[["Option A","Everwild Canmore day trip."],["Option B","UCalgary skating or easy Calgary date day."]]},
-    spa:{date:"Nov 24",badge:"Evening",title:"Everwild Nordic Spa",summary:"Placeholder after-work spa night.",items:[]},
-    ski1:{date:"Dec 1",badge:"Evening",title:"WinSport Ski Night",summary:"Tentative after-work ski evening.",items:[]},
-    final:{date:"Dec 7–10",badge:"4 PTO days",title:"Final Days Together",summary:"Keep the final four days flexible for weather, ski conditions, Canmore and departure.",items:[]},
-    ski2:{date:"Dec 8",badge:"PTO",title:"WinSport Ski Day",summary:"Second ski slot inside the final PTO block.",items:[]}
-  };
-
-  const seededEvents = {
-    "2026-11-07":[{key:"seed:edmonton",label:"Edmonton · Day 1",type:"trip"}],
-    "2026-11-08":[{key:"seed:edmonton",label:"Edmonton · Day 2",type:"trip"}],
-    "2026-11-11":[{key:"seed:remembrance",label:"Both off",type:"local"}],
-    "2026-11-16":[{key:"seed:toronto",label:"Toronto · Niagara",type:"trip"}],
-    "2026-11-17":[{key:"seed:toronto",label:"Toronto · Markham",type:"trip"}],
-    "2026-11-18":[{key:"seed:toronto",label:"Toronto · Downtown",type:"trip"}],
-    "2026-11-24":[{key:"seed:spa",label:"Everwild spa",type:"activity"}],
-    "2026-12-01":[{key:"seed:ski1",label:"WinSport ski",type:"activity"}],
-    "2026-12-07":[{key:"seed:final",label:"PTO · final block",type:"trip"}],
-    "2026-12-08":[{key:"seed:ski2",label:"PTO + WinSport",type:"activity"}],
-    "2026-12-09":[{key:"seed:final",label:"PTO · open day",type:"trip"}],
-    "2026-12-10":[{key:"seed:final",label:"Airport day",type:"trip"}]
-  };
-
-  const blocked = new Set();
-  const addRange=(a,b)=>{let d=new Date(a+"T00:00:00Z"),e=new Date(b+"T00:00:00Z");while(d<=e){blocked.add(d.toISOString().slice(0,10));d.setUTCDate(d.getUTCDate()+1)}};
-  addRange("2026-11-09","2026-11-10"); addRange("2026-11-12","2026-11-15"); addRange("2026-11-20","2026-11-22"); addRange("2026-11-27","2026-11-29"); addRange("2026-12-04","2026-12-06");
-
-  let session=null, planner=null, events=[], wishes=[], wishFilter="open", selectedEvent=null;
+  let session=null, planner=null, events=[], wishes=[], itineraries=[], availability=[], wishFilter="open", selectedEvent=null;
 
   const $=id=>document.getElementById(id);
   const authPanel=$("authPanel"),plannerSetup=$("plannerSetup"),appShell=$("appShell"),syncStatus=$("syncStatus"),
@@ -40,8 +11,9 @@
   detailForm=$("detailForm"),addForm=$("addForm"),deletePlanBtn=$("deletePlanBtn");
 
   const prettyDate=iso=>new Intl.DateTimeFormat("en-CA",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}).format(new Date(iso+"T00:00:00Z"));
-
-  function setSync(text,ok=false){syncStatus.textContent=text;syncStatus.classList.toggle("ok",ok)}
+  const shortDate=iso=>new Intl.DateTimeFormat("en-CA",{month:"short",day:"numeric",timeZone:"UTC"}).format(new Date(iso+"T00:00:00Z"));
+  const isoDate=d=>d.toISOString().slice(0,10);
+  const setSync=(text,ok=false)=>{syncStatus.textContent=text;syncStatus.classList.toggle("ok",ok)};
 
   authForm.addEventListener("submit", async e=>{
     e.preventDefault();authMsg.textContent="Sending…";
@@ -53,7 +25,12 @@
 
   $("createPlannerForm").addEventListener("submit",async e=>{
     e.preventDefault();setupMsg.textContent="Creating…";
-    const {data,error}=await db.rpc("create_planner",{planner_name:$("plannerName").value.trim()});
+    const {data,error}=await db.rpc("create_planner",{
+      planner_name:$("plannerName").value.trim(),
+      planner_start_date:$("plannerStartDate").value,
+      planner_end_date:$("plannerEndDate").value,
+      planner_pto_allowance:Number($("plannerPtoAllowance").value||0)
+    });
     if(error){setupMsg.textContent=error.message;return}
     planner=Array.isArray(data)?data[0]:data;
     await loadPlannerData();showApp();
@@ -69,77 +46,114 @@
   async function boot(){
     const {data:{session:s}}=await db.auth.getSession();session=s;
     db.auth.onAuthStateChange(async(_,s2)=>{session=s2;if(session)await afterLogin()});
-    if(session)await afterLogin(); else showAuth();
+    if(session)await afterLogin();else showAuth();
   }
 
-  function showAuth(){authPanel.classList.remove("hidden");appShell.classList.add("hidden");$("signOutBtn").classList.add("hidden");setSync("Not connected")}
+  function showAuth(){
+    authPanel.classList.remove("hidden");appShell.classList.add("hidden");$("signOutBtn").classList.add("hidden");setSync("Not connected");
+  }
 
   async function afterLogin(){
-    $("signOutBtn").classList.remove("hidden");
-    authPanel.classList.remove("hidden");
+    $("signOutBtn").classList.remove("hidden");authPanel.classList.remove("hidden");
     const found=await loadMemberships();
     if(!found){plannerSetup.classList.remove("hidden");authForm.parentElement.classList.add("hidden");setSync("Signed in");return}
     showApp();
   }
 
   async function loadMemberships(preferredId=null){
-    const {data,error}=await db.from("planner_members").select("planner_id, role, planners(id,name,invite_code)").eq("user_id",session.user.id);
+    const {data,error}=await db.from("planner_members")
+      .select("planner_id, role, planners(id,name,invite_code,start_date,end_date,pto_allowance)")
+      .eq("user_id",session.user.id);
     if(error){setupMsg.textContent=error.message;return false}
     if(!data?.length)return false;
     const row=preferredId?data.find(x=>x.planner_id===preferredId)||data[0]:data[0];
-    planner=row.planners;await loadPlannerData();return true;
+    planner=row.planners;
+    await loadPlannerData();
+    return true;
   }
 
   async function loadPlannerData(){
     setSync("Syncing…");
-    const [{data:e,error:ee},{data:w,error:we}] = await Promise.all([
+    const [er,wr,ir,ar] = await Promise.all([
       db.from("events").select("*").eq("planner_id",planner.id).order("event_date"),
-      db.from("wishes").select("*").eq("planner_id",planner.id).order("created_at")
+      db.from("wishes").select("*").eq("planner_id",planner.id).order("created_at"),
+      db.from("itineraries").select("*").eq("planner_id",planner.id).order("start_date"),
+      db.from("availability").select("*").eq("planner_id",planner.id).order("availability_date")
     ]);
-    if(ee||we){setSync("Sync error");setupMsg.textContent=(ee||we).message;return}
-    events=e||[];wishes=w||[];
-    renderCalendar();renderCards();renderWishes();
-    setSync("Synced",true);
+    const error=er.error||wr.error||ir.error||ar.error;
+    if(error){setSync("Sync error");setupMsg.textContent=error.message;return}
+    events=er.data||[];wishes=wr.data||[];itineraries=ir.data||[];availability=ar.data||[];
+    renderAll();setSync("Synced",true);
+  }
+
+  function renderAll(){
+    renderHeader();renderCalendar();renderCards();renderWishes();renderPto();
   }
 
   function showApp(){
     authPanel.classList.add("hidden");plannerSetup.classList.add("hidden");appShell.classList.remove("hidden");
     $("plannerDisplayName").textContent=planner.name;$("plannerInviteCode").textContent=planner.invite_code;
-    renderCalendar();renderCards();renderWishes();setSync("Synced",true);
+    $("addDate").min=planner.start_date;$("addDate").max=planner.end_date;
+    renderAll();setSync("Synced",true);
   }
 
-  function remoteEventsForDate(date){return events.filter(e=>e.event_date===date)}
+  function renderHeader(){
+    $("pageTitle").textContent=planner.name;
+    $("plannerDateRange").textContent=prettyDate(planner.start_date)+" – "+prettyDate(planner.end_date)+" · shared planner";
+  }
+
+  function availabilityForDate(date){return availability.filter(a=>a.availability_date===date)}
+  function eventsForDate(date){return events.filter(e=>e.event_date===date)}
+
+  function calendarBounds(){
+    const start=new Date(planner.start_date+"T00:00:00Z");
+    const end=new Date(planner.end_date+"T00:00:00Z");
+    const startOffset=(start.getUTCDay()+6)%7;
+    const endOffset=6-((end.getUTCDay()+6)%7);
+    start.setUTCDate(start.getUTCDate()-startOffset);
+    end.setUTCDate(end.getUTCDate()+endOffset);
+    return {start,end};
+  }
 
   function renderCalendar(){
     calendar.innerHTML="";
-    const start=new Date("2026-11-02T00:00:00Z"),end=new Date("2026-12-13T00:00:00Z");
+    const {start,end}=calendarBounds();
     for(let d=new Date(start);d<=end;d.setUTCDate(d.getUTCDate()+1)){
-      const iso=d.toISOString().slice(0,10),inRange=iso>="2026-11-04"&&iso<="2026-12-10";
-      const cell=document.createElement("div");cell.className="day";if(!inRange)cell.classList.add("out");else if(blocked.has(iso))cell.classList.add("workday");
-      const top=document.createElement("div");top.className="day-top";const n=document.createElement("div");n.className="day-num";n.textContent=d.getUTCDate();top.appendChild(n);
-      if(inRange&&!blocked.has(iso)){const add=document.createElement("button");add.type="button";add.className="day-add";add.textContent="+";add.onclick=()=>openAdd(iso);top.appendChild(add)}
+      const iso=isoDate(d),inRange=iso>=planner.start_date&&iso<=planner.end_date;
+      const av=availabilityForDate(iso),working=av.some(a=>a.status==="working");
+      const cell=document.createElement("div");cell.className="day";
+      if(!inRange)cell.classList.add("out");if(working)cell.classList.add("workday");
+
+      const top=document.createElement("div");top.className="day-top";
+      const n=document.createElement("div");n.className="day-num";n.textContent=d.getUTCDate();top.appendChild(n);
+      if(inRange){const add=document.createElement("button");add.type="button";add.className="day-add";add.textContent="+";add.onclick=()=>openAdd(iso);top.appendChild(add)}
       cell.appendChild(top);
-      if(blocked.has(iso)&&inRange){const w=document.createElement("div");w.className="work-note";w.textContent="Jen working";cell.appendChild(w)}
-      if(inRange){
-        (seededEvents[iso]||[]).forEach(ev=>{const p=document.createElement("button");p.className="event-pill "+ev.type;p.textContent=ev.label;p.onclick=()=>openSeed(ev.key);cell.appendChild(p)});
-        remoteEventsForDate(iso).forEach(ev=>{const p=document.createElement("button");p.className="event-pill "+ev.event_type;p.textContent=ev.title;p.onclick=()=>openRemoteEvent(ev);cell.appendChild(p)});
-      }
+
+      av.forEach(a=>{const note=document.createElement("div");note.className="work-note";note.textContent=a.note||((a.person_name||"Someone")+" · "+a.status);cell.appendChild(note)});
+      if(inRange)eventsForDate(iso).forEach(ev=>{const p=document.createElement("button");p.className="event-pill "+ev.event_type;p.textContent=ev.title;p.onclick=()=>openRemoteEvent(ev);cell.appendChild(p)});
       calendar.appendChild(cell);
     }
   }
 
   function renderCards(){
     tripCards.innerHTML="";
-    ["edmonton","toronto","final"].forEach(key=>{const t=seededTrips[key],b=document.createElement("button");b.className="trip-card";
-      b.innerHTML='<div class="date">'+t.date.toUpperCase()+'</div><div class="title">'+t.title+'</div><div class="sub">'+t.summary+'</div>';b.onclick=()=>openSeed("seed:"+key);tripCards.appendChild(b)
+    itineraries.filter(i=>i.is_featured).forEach(it=>{
+      const b=document.createElement("button");b.className="trip-card";
+      const range=it.start_date===it.end_date?shortDate(it.start_date):shortDate(it.start_date)+"–"+shortDate(it.end_date);
+      b.innerHTML='<div class="date">'+range.toUpperCase()+'</div><div class="title"></div><div class="sub"></div>';
+      b.querySelector(".title").textContent=it.title;b.querySelector(".sub").textContent=it.summary;b.onclick=()=>openItinerary(it);tripCards.appendChild(b);
     });
   }
 
-  function openSeed(key){
-    selectedEvent=null;const k=key.replace("seed:",""),t=seededTrips[k];if(!t)return;
-    $("detailDate").textContent=t.date.toUpperCase();$("detailTitle").textContent=t.title;$("detailBadge").textContent=t.badge;$("detailSummary").textContent=t.summary;
-    $("detailItems").innerHTML="";(t.items||[]).forEach(([h,s])=>{$("detailItems").insertAdjacentHTML("beforeend",'<div class="detail-item"><strong>'+h+'</strong><span>'+s+'</span></div>')});
-    detailForm.classList.add("hidden");addForm.classList.add("hidden");
+  function openItinerary(it){
+    selectedEvent=null;detailForm.classList.add("hidden");addForm.classList.add("hidden");
+    const range=it.start_date===it.end_date?prettyDate(it.start_date):shortDate(it.start_date)+" – "+prettyDate(it.end_date);
+    $("detailDate").textContent=range.toUpperCase();$("detailTitle").textContent=it.title;$("detailBadge").textContent=it.badge||"Itinerary";$("detailSummary").textContent=it.summary;$("detailItems").innerHTML="";
+    events.filter(e=>e.itinerary_id===it.id).forEach(ev=>{
+      const row=document.createElement("div");row.className="detail-item";
+      const h=document.createElement("strong");h.textContent=shortDate(ev.event_date)+" · "+ev.title;
+      const s=document.createElement("span");s.textContent=ev.summary||"No notes yet.";row.append(h,s);row.onclick=()=>openRemoteEvent(ev);$("detailItems").appendChild(row);
+    });
   }
 
   function openRemoteEvent(ev){
@@ -151,11 +165,12 @@
   function openAdd(date="",prefill=null){
     selectedEvent=null;detailForm.classList.add("hidden");$("detailItems").innerHTML="";
     $("detailDate").textContent=date?prettyDate(date).toUpperCase():"NEW PLAN";$("detailTitle").textContent="Add something to the calendar";$("detailBadge").textContent="New";$("detailSummary").textContent=prefill?"Schedule this wish on the calendar.":"Create a shared event.";
-    $("addDate").value=date;$("addType").value=prefill?.type||"activity";$("addTitle").value=prefill?.title||"";$("addSummary").value=prefill?.notes||"";$("addPto").checked=false;$("sourceWishId").value=prefill?.id||"";$("addMsg").textContent="";addForm.classList.remove("hidden");
+    $("addDate").min=planner.start_date;$("addDate").max=planner.end_date;$("addDate").value=date;
+    $("addType").value=prefill?.type||"activity";$("addTitle").value=prefill?.title||"";$("addSummary").value=prefill?.notes||"";$("addPto").checked=false;$("sourceWishId").value=prefill?.id||"";$("addMsg").textContent="";addForm.classList.remove("hidden");
   }
 
   $("addPlanBtn").onclick=()=>openAdd("");
-  $("cancelAddBtn").onclick=()=>{addForm.classList.add("hidden")};
+  $("cancelAddBtn").onclick=()=>addForm.classList.add("hidden");
 
   detailForm.addEventListener("submit",async e=>{
     e.preventDefault();if(!selectedEvent)return;$("saveMsg").textContent="Saving…";
@@ -172,7 +187,8 @@
   });
 
   addForm.addEventListener("submit",async e=>{
-    e.preventDefault();const date=$("addDate").value;if(blocked.has(date)){$("addMsg").textContent="That day is marked as Jen working.";return}
+    e.preventDefault();const date=$("addDate").value;
+    if(!date||date<planner.start_date||date>planner.end_date){$("addMsg").textContent="Choose a date inside this planner.";return}
     $("addMsg").textContent="Saving…";
     const wishId=$("sourceWishId").value||null;
     const payload={planner_id:planner.id,event_date:date,title:$("addTitle").value.trim(),summary:$("addSummary").value.trim(),event_type:$("addType").value,is_pto:$("addPto").checked,source_wish_id:wishId,created_by:session.user.id};
@@ -181,6 +197,13 @@
     if(wishId)await db.from("wishes").update({status:"planned",scheduled_event_id:data.id}).eq("id",wishId);
     await loadPlannerData();openRemoteEvent(data);
   });
+
+  function renderPto(){
+    const dates=[...new Set(events.filter(e=>e.is_pto).map(e=>e.event_date))].sort();
+    const used=dates.length,allowance=planner.pto_allowance||0,remaining=Math.max(0,allowance-used);
+    $("ptoDates").textContent=dates.length?"PTO dates: "+dates.map(shortDate).join(", "):"No PTO days planned yet.";
+    $("ptoSummary").innerHTML="<strong>"+used+" / "+allowance+" days planned</strong>"+(allowance?(" · "+remaining+" remaining"):"");
+  }
 
   function renderWishes(){
     openWishCount.textContent=wishes.filter(w=>w.status==="open").length;
@@ -194,9 +217,8 @@
       const actions=document.createElement("div");actions.className="wish-actions";
       if(w.status==="open"){
         const schedule=document.createElement("button");schedule.className="schedule";schedule.textContent="Schedule";schedule.onclick=()=>openAdd("",{id:w.id,title:w.title,notes:w.notes,type:w.category==="trip"?"trip":"activity"});
-        const resolve=document.createElement("button");resolve.textContent="Resolve";resolve.onclick=async()=>{await db.from("wishes").update({status:"resolved"}).eq("id",w.id);await loadPlannerData()};
-        actions.append(schedule,resolve);
-      } else {
+        const resolve=document.createElement("button");resolve.textContent="Resolve";resolve.onclick=async()=>{await db.from("wishes").update({status:"resolved"}).eq("id",w.id);await loadPlannerData()};actions.append(schedule,resolve);
+      }else{
         const reopen=document.createElement("button");reopen.textContent="Reopen";reopen.onclick=async()=>{await db.from("wishes").update({status:"open",scheduled_event_id:null}).eq("id",w.id);await loadPlannerData()};actions.append(reopen);
       }
       const del=document.createElement("button");del.className="delete";del.textContent="Delete";del.onclick=async()=>{if(!confirm("Delete this wish?"))return;await db.from("wishes").delete().eq("id",w.id);await loadPlannerData()};actions.append(del);
