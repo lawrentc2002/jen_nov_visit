@@ -63,17 +63,17 @@
       const current=localStorage.getItem(STORAGE_KEY);
       if(current){
         const p=JSON.parse(current);
-        return {trips:{...clone(defaults),...(p.trips||{})},customEvents:normalizeCustomEvents(p.customEvents),wishes:Array.isArray(p.wishes)?p.wishes:[]};
+        return {trips:{...clone(defaults),...(p.trips||{})},customEvents:normalizeCustomEvents(p.customEvents),wishes:Array.isArray(p.wishes)?p.wishes:[],removedBaseKeys:Array.isArray(p.removedBaseKeys)?p.removedBaseKeys:[]};
       }
       for(const key of PREVIOUS_KEYS){
         const raw=localStorage.getItem(key);
         if(!raw)continue;
         const p=JSON.parse(raw);
-        if(key==="jenVisitPlanner.v1") return {trips:{...clone(defaults),...p},customEvents:{},wishes:[]};
-        return {trips:{...clone(defaults),...(p.trips||{})},customEvents:normalizeCustomEvents(p.customEvents),wishes:[]};
+        if(key==="jenVisitPlanner.v1") return {trips:{...clone(defaults),...p},customEvents:{},wishes:[],removedBaseKeys:[]};
+        return {trips:{...clone(defaults),...(p.trips||{})},customEvents:normalizeCustomEvents(p.customEvents),wishes:[],removedBaseKeys:[]};
       }
     }catch{}
-    return {trips:clone(defaults),customEvents:{},wishes:[]};
+    return {trips:clone(defaults),customEvents:{},wishes:[],removedBaseKeys:[]};
   }
 
   let state=loadState(),wishFilter="open";
@@ -94,7 +94,10 @@
   wishNotes=document.getElementById("wishNotes"),wishList=document.getElementById("wishList"),
   openWishCount=document.getElementById("openWishCount");
 
-  const eventsForDate=date=>[...(baseDayEvents[date]||[]),...(state.customEvents[date]||[])];
+  const eventsForDate=date=>[
+    ...(baseDayEvents[date]||[]).filter(ev=>!state.removedBaseKeys.includes(ev.key)),
+    ...(state.customEvents[date]||[])
+  ];
   const prettyDate=iso=>new Intl.DateTimeFormat("en-CA",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}).format(new Date(iso+"T00:00:00Z"));
 
   function openDetail(key){
@@ -102,7 +105,7 @@
     detailDate.textContent=t.date.toUpperCase();detailTitle.textContent=t.title;detailBadge.textContent=t.badge;detailSummary.textContent=t.summary;detailItems.innerHTML="";
     (t.items||[]).forEach(([head,text])=>{const row=document.createElement("div");row.className="detail-item";const h=document.createElement("strong");h.textContent=head;const s=document.createElement("span");s.textContent=text;row.append(h,s);detailItems.appendChild(row)});
     editKey.value=key;editTitle.value=t.title;editSummary.value=t.summary;detailForm.classList.remove("hidden");
-    deletePlanBtn.classList.toggle("hidden",!t.customDate);saveMsg.textContent="";
+    deletePlanBtn.classList.remove("hidden");saveMsg.textContent="";
   }
 
   function openAdd(date="",prefill=null){
@@ -134,7 +137,7 @@
 
   function renderCards(){
     tripCards.innerHTML="";
-    ["edmonton","toronto","final"].forEach(key=>{const t=state.trips[key],b=document.createElement("button");b.type="button";b.className="trip-card";
+    ["edmonton","toronto","final"].filter(key=>!state.removedBaseKeys.includes(key)).forEach(key=>{const t=state.trips[key],b=document.createElement("button");b.type="button";b.className="trip-card";
       const date=document.createElement("div");date.className="date";date.textContent=t.date.toUpperCase();
       const title=document.createElement("div");title.className="title";title.textContent=t.title;
       const sub=document.createElement("div");sub.className="sub";sub.textContent=t.summary;b.append(date,title,sub);b.addEventListener("click",()=>openDetail(key));tripCards.appendChild(b)
@@ -198,10 +201,23 @@
   });
 
   deletePlanBtn.addEventListener("click",()=>{
-    const key=editKey.value,t=state.trips[key];if(!t||!t.customDate)return;if(!confirm("Delete this plan from the calendar?"))return;
-    const date=t.customDate;state.customEvents[date]=(state.customEvents[date]||[]).filter(x=>x.key!==key);if(state.customEvents[date].length===0)delete state.customEvents[date];
-    state.wishes.forEach(w=>{if(w.planKey===key){w.resolved=false;w.scheduledDate="";w.planKey=""}});
-    delete state.trips[key];saveState();renderCalendar();renderWishes();detailForm.classList.add("hidden");detailItems.innerHTML="";
+    const key=editKey.value,t=state.trips[key];if(!t)return;
+    const isCustom=!!t.customDate;
+    const prompt=isCustom?"Delete this plan from the calendar?":"Remove this planned item from the planner? You can restore the original plans with Reset.";
+    if(!confirm(prompt))return;
+
+    if(isCustom){
+      const date=t.customDate;
+      state.customEvents[date]=(state.customEvents[date]||[]).filter(x=>x.key!==key);
+      if(state.customEvents[date].length===0)delete state.customEvents[date];
+      state.wishes.forEach(w=>{if(w.planKey===key){w.resolved=false;w.scheduledDate="";w.planKey=""}});
+      delete state.trips[key];
+    }else if(!state.removedBaseKeys.includes(key)){
+      state.removedBaseKeys.push(key);
+    }
+
+    saveState();renderCalendar();renderCards();renderWishes();
+    detailForm.classList.add("hidden");detailItems.innerHTML="";
     detailDate.textContent="SELECT A PLAN";detailTitle.textContent="Trip & event details";detailBadge.textContent="Planner";detailSummary.textContent="Choose a trip card or planned date to see the itinerary.";
   });
 
@@ -218,8 +234,8 @@
   document.getElementById("cancelAddBtn").addEventListener("click",()=>{closeAdd();openDetail("edmonton")});
 
   document.getElementById("exportBtn").addEventListener("click",()=>{const blob=new Blob([JSON.stringify({version:4,...state},null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="jen-visit-planner-backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)});
-  document.getElementById("importInput").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!data.trips)throw new Error();state={trips:{...clone(defaults),...data.trips},customEvents:normalizeCustomEvents(data.customEvents),wishes:Array.isArray(data.wishes)?data.wishes:[]};saveState();renderCalendar();renderCards();renderWishes();openDetail("edmonton")}catch{alert("Could not import that backup file.")}e.target.value=""});
-  document.getElementById("resetBtn").addEventListener("click",()=>{if(!confirm("Reset all edited details, added plans and wishes?"))return;localStorage.removeItem(STORAGE_KEY);PREVIOUS_KEYS.forEach(k=>localStorage.removeItem(k));state={trips:clone(defaults),customEvents:{},wishes:[]};saveState();renderCalendar();renderCards();renderWishes();openDetail("edmonton")});
+  document.getElementById("importInput").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!data.trips)throw new Error();state={trips:{...clone(defaults),...data.trips},customEvents:normalizeCustomEvents(data.customEvents),wishes:Array.isArray(data.wishes)?data.wishes:[],removedBaseKeys:Array.isArray(data.removedBaseKeys)?data.removedBaseKeys:[]};saveState();renderCalendar();renderCards();renderWishes();openDetail("edmonton")}catch{alert("Could not import that backup file.")}e.target.value=""});
+  document.getElementById("resetBtn").addEventListener("click",()=>{if(!confirm("Reset all edited details, added plans and wishes?"))return;localStorage.removeItem(STORAGE_KEY);PREVIOUS_KEYS.forEach(k=>localStorage.removeItem(k));state={trips:clone(defaults),customEvents:{},wishes:[],removedBaseKeys:[]};saveState();renderCalendar();renderCards();renderWishes();openDetail("edmonton")});
 
   renderCalendar();renderCards();renderWishes();openDetail("edmonton");
 })();
