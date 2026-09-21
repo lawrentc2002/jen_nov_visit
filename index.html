@@ -11,22 +11,59 @@
   <div>
     <div class="eyebrow">DREAM TRAVEL LIFE</div>
     <h1>Jen Visit Planner</h1>
-    <p>Nov 4 – Dec 10, 2026 · trips, PTO, activities and notes</p>
+    <p>Nov 4 – Dec 10, 2026 · shared trips, PTO, activities and wishes</p>
   </div>
   <div class="actions">
+    <span id="syncStatus" class="sync-pill">Not connected</span>
     <button id="addPlanBtn" class="primary">+ Add plan</button>
-    <button id="exportBtn" class="secondary">Export backup</button>
-    <label class="secondary file-label">Import backup<input id="importInput" type="file" accept="application/json"></label>
-    <button id="resetBtn" class="danger">Reset</button>
+    <button id="signOutBtn" class="secondary hidden">Sign out</button>
   </div>
 </header>
 
-<main class="layout">
+<section id="authPanel" class="auth-shell">
+  <div class="auth-card">
+    <div class="eyebrow">SHARED PLANNER</div>
+    <h2>Sign in to sync with Jen</h2>
+    <p>Use your email. Supabase will send you a magic link.</p>
+    <form id="authForm" class="auth-form">
+      <input id="authEmail" type="email" placeholder="you@example.com" required>
+      <button type="submit">Send magic link</button>
+    </form>
+    <div id="authMsg" class="helper"></div>
+  </div>
+
+  <div id="plannerSetup" class="auth-card hidden">
+    <div class="eyebrow">ONE-TIME SETUP</div>
+    <h2>Create or join a planner</h2>
+    <p>Create the shared planner once, then send the invite code to Jen.</p>
+    <div class="setup-grid">
+      <form id="createPlannerForm">
+        <label>Planner name<input id="plannerName" value="Jen Visit Planner" required></label>
+        <button type="submit">Create planner</button>
+      </form>
+      <form id="joinPlannerForm">
+        <label>Invite code<input id="inviteCode" placeholder="e.g. A1B2C3D4E5" required></label>
+        <button type="submit" class="secondary-action">Join planner</button>
+      </form>
+    </div>
+    <div id="setupMsg" class="helper"></div>
+  </div>
+</section>
+
+<main id="appShell" class="layout hidden">
   <section>
+    <div class="share-banner">
+      <div>
+        <div class="eyebrow">SHARED WORKSPACE</div>
+        <strong id="plannerDisplayName">Jen Visit Planner</strong>
+      </div>
+      <div class="share-code-wrap">Invite code <code id="plannerInviteCode">—</code></div>
+    </div>
+
     <div class="panel-head">
       <div>
         <h2>Calendar</h2>
-        <p>Click a planned day to open details, or click + to add something.</p>
+        <p>Custom plans are synced through Supabase. Seeded itinerary ideas are still shown as defaults.</p>
       </div>
       <div class="legend">
         <span><i class="dot work"></i>Jen working</span>
@@ -49,7 +86,7 @@
         <div class="wish-copy">
           <div class="eyebrow">JEN'S IDEA INBOX</div>
           <h2>Make a wish</h2>
-          <p>See something fun? Drop it here. We can figure out the day later.</p>
+          <p>Anything added here is shared between both of you.</p>
         </div>
         <div class="wish-count"><strong id="openWishCount">0</strong><span>waiting</span></div>
       </div>
@@ -91,7 +128,6 @@
       </div>
       <span id="detailBadge" class="badge">Planner</span>
     </div>
-
     <p id="detailSummary" class="summary">Choose a trip card or planned date to see the itinerary.</p>
     <div id="detailItems" class="detail-items"></div>
 
@@ -101,7 +137,7 @@
       <label>Notes<textarea id="editSummary" rows="4" maxlength="400" required></textarea></label>
       <div class="form-actions">
         <button type="submit">Save details</button>
-        <button id="deletePlanBtn" type="button" class="danger-outline hidden">Delete</button>
+        <button id="deletePlanBtn" type="button" class="danger-outline">Delete</button>
         <span id="saveMsg"></span>
       </div>
     </form>
@@ -110,16 +146,9 @@
       <h3>Add a plan</h3>
       <input id="sourceWishId" type="hidden">
       <label>Date<input id="addDate" type="date" min="2026-11-04" max="2026-12-10" required></label>
-      <label>
-        Type
-        <select id="addType">
-          <option value="activity">Activity</option>
-          <option value="trip">Trip / PTO</option>
-          <option value="local">Holiday / local</option>
-        </select>
-      </label>
-      <label>Title<input id="addTitle" maxlength="70" placeholder="e.g. Dinner in Kensington" required></label>
-      <label>Notes<textarea id="addSummary" rows="4" maxlength="400" placeholder="Add the useful details here"></textarea></label>
+      <label>Type<select id="addType"><option value="activity">Activity</option><option value="trip">Trip / PTO</option><option value="local">Holiday / local</option></select></label>
+      <label>Title<input id="addTitle" maxlength="70" required></label>
+      <label>Notes<textarea id="addSummary" rows="4" maxlength="400"></textarea></label>
       <label class="check-row"><input id="addPto" type="checkbox"> Mark as PTO</label>
       <div class="form-actions">
         <button type="submit">Add to calendar</button>
@@ -137,6 +166,8 @@
   </aside>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
