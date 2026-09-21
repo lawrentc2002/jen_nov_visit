@@ -53,9 +53,10 @@
 
   $("createPlannerForm").addEventListener("submit",async e=>{
     e.preventDefault();setupMsg.textContent="Creating…";
-    const {data,error}=await db.from("planners").insert({name:$("plannerName").value.trim(),created_by:session.user.id}).select().single();
+    const {data,error}=await db.rpc("create_planner",{planner_name:$("plannerName").value.trim()});
     if(error){setupMsg.textContent=error.message;return}
-    planner=data;await loadPlannerData();showApp();
+    planner=Array.isArray(data)?data[0]:data;
+    await loadPlannerData();showApp();
   });
 
   $("joinPlannerForm").addEventListener("submit",async e=>{
