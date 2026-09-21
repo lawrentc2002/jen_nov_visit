@@ -110,14 +110,30 @@ language sql
 stable
 security definer
 set search_path = public
-as $$
+as $
   select exists (
     select 1
     from public.planner_members pm
     where pm.planner_id = target_planner_id
       and pm.user_id = auth.uid()
   );
-$$;
+$;
+
+create or replace function public.is_planner_owner(target_planner_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $
+  select exists (
+    select 1
+    from public.planner_members pm
+    where pm.planner_id = target_planner_id
+      and pm.user_id = auth.uid()
+      and pm.role = 'owner'
+  );
+$;
 
 drop policy if exists planners_select_for_members on public.planners;
 create policy planners_select_for_members
@@ -138,22 +154,8 @@ create policy planners_update_owner
 on public.planners
 for update
 to authenticated
-using (
-  exists (
-    select 1 from public.planner_members pm
-    where pm.planner_id = id
-      and pm.user_id = auth.uid()
-      and pm.role = 'owner'
-  )
-)
-with check (
-  exists (
-    select 1 from public.planner_members pm
-    where pm.planner_id = id
-      and pm.user_id = auth.uid()
-      and pm.role = 'owner'
-  )
-);
+using (public.is_planner_owner(id))
+with check (public.is_planner_owner(id));
 
 drop policy if exists planner_members_select_for_members on public.planner_members;
 create policy planner_members_select_for_members
@@ -167,28 +169,14 @@ create policy planner_members_insert_owner_only
 on public.planner_members
 for insert
 to authenticated
-with check (
-  exists (
-    select 1 from public.planner_members pm
-    where pm.planner_id = planner_members.planner_id
-      and pm.user_id = auth.uid()
-      and pm.role = 'owner'
-  )
-);
+with check (public.is_planner_owner(planner_id));
 
 drop policy if exists planner_members_delete_owner_only on public.planner_members;
 create policy planner_members_delete_owner_only
 on public.planner_members
 for delete
 to authenticated
-using (
-  exists (
-    select 1 from public.planner_members pm
-    where pm.planner_id = planner_members.planner_id
-      and pm.user_id = auth.uid()
-      and pm.role = 'owner'
-  )
-);
+using (public.is_planner_owner(planner_id));
 
 drop policy if exists events_select_for_members on public.events;
 create policy events_select_for_members
