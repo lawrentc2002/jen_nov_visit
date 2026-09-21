@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jen November Visit Planner</title>
+  <title>Shared Travel Planner</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <header class="topbar">
   <div>
     <div class="eyebrow">DREAM TRAVEL LIFE</div>
-    <h1>Jen Visit Planner</h1>
-    <p>Nov 4 – Dec 10, 2026 · shared trips, PTO, activities and wishes</p>
+    <h1 id="pageTitle">Travel Planner</h1>
+    <p id="plannerDateRange">Shared trips, PTO, activities and wishes</p>
   </div>
   <div class="actions">
     <span id="syncStatus" class="sync-pill">Not connected</span>
@@ -23,7 +23,7 @@
 <section id="authPanel" class="auth-shell">
   <div class="auth-card">
     <div class="eyebrow">SHARED PLANNER</div>
-    <h2>Sign in to sync with Jen</h2>
+    <h2>Sign in to sync</h2>
     <p>Use your email. Supabase will send you a magic link.</p>
     <form id="authForm" class="auth-form">
       <input id="authEmail" type="email" placeholder="you@example.com" required>
@@ -35,10 +35,13 @@
   <div id="plannerSetup" class="auth-card hidden">
     <div class="eyebrow">ONE-TIME SETUP</div>
     <h2>Create or join a planner</h2>
-    <p>Create the shared planner once, then send the invite code to Jen.</p>
+    <p>Create a planner with its own date range, or join one using an invite code.</p>
     <div class="setup-grid">
       <form id="createPlannerForm">
         <label>Planner name<input id="plannerName" value="Jen Visit Planner" required></label>
+        <label>Start date<input id="plannerStartDate" type="date" value="2026-11-04" required></label>
+        <label>End date<input id="plannerEndDate" type="date" value="2026-12-10" required></label>
+        <label>PTO allowance<input id="plannerPtoAllowance" type="number" min="0" value="8" required></label>
         <button type="submit">Create planner</button>
       </form>
       <form id="joinPlannerForm">
@@ -55,7 +58,7 @@
     <div class="share-banner">
       <div>
         <div class="eyebrow">SHARED WORKSPACE</div>
-        <strong id="plannerDisplayName">Jen Visit Planner</strong>
+        <strong id="plannerDisplayName">Planner</strong>
       </div>
       <div class="share-code-wrap">Invite code <code id="plannerInviteCode">—</code></div>
     </div>
@@ -63,10 +66,10 @@
     <div class="panel-head">
       <div>
         <h2>Calendar</h2>
-        <p>Custom plans are synced through Supabase. Seeded itinerary ideas are still shown as defaults.</p>
+        <p>Planner dates, availability and events are loaded from Supabase.</p>
       </div>
       <div class="legend">
-        <span><i class="dot work"></i>Jen working</span>
+        <span><i class="dot work"></i>Working</span>
         <span><i class="dot trip"></i>Trip / PTO</span>
         <span><i class="dot activity"></i>Activity</span>
         <span><i class="dot local"></i>Holiday / local</span>
@@ -84,15 +87,15 @@
       <div class="wish-hero">
         <div class="wish-icon">✨</div>
         <div class="wish-copy">
-          <div class="eyebrow">JEN'S IDEA INBOX</div>
+          <div class="eyebrow">IDEA INBOX</div>
           <h2>Make a wish</h2>
-          <p>Anything added here is shared between both of you.</p>
+          <p>Anything added here is shared between planner members.</p>
         </div>
         <div class="wish-count"><strong id="openWishCount">0</strong><span>waiting</span></div>
       </div>
 
       <form id="wishForm" class="wish-composer">
-        <div class="wish-prompt">What do you want to do while you're here?</div>
+        <div class="wish-prompt">What do you want to do?</div>
         <input id="wishTitle" class="wish-title-input" maxlength="90" placeholder="e.g. Go skating, eat hotpot, see Banff..." required>
         <div class="wish-options">
           <select id="wishCategory" aria-label="Wish category">
@@ -145,7 +148,7 @@
     <form id="addForm" class="editor hidden">
       <h3>Add a plan</h3>
       <input id="sourceWishId" type="hidden">
-      <label>Date<input id="addDate" type="date" min="2026-11-04" max="2026-12-10" required></label>
+      <label>Date<input id="addDate" type="date" required></label>
       <label>Type<select id="addType"><option value="activity">Activity</option><option value="trip">Trip / PTO</option><option value="local">Holiday / local</option></select></label>
       <label>Title<input id="addTitle" maxlength="70" required></label>
       <label>Notes<textarea id="addSummary" rows="4" maxlength="400"></textarea></label>
@@ -159,9 +162,8 @@
 
     <div class="pto-card">
       <h3>PTO plan</h3>
-      <p><strong>Nov 16–18</strong> · Toronto · 3 days</p>
-      <p><strong>Dec 7–10</strong> · final block · 4 days</p>
-      <p><strong>7 / 8 days planned</strong> · 1 flexible PTO day remains</p>
+      <p id="ptoDates">No PTO days planned yet.</p>
+      <p id="ptoSummary"><strong>0 / 0 days planned</strong></p>
     </div>
   </aside>
 </main>
