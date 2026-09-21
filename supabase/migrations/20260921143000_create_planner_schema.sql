@@ -110,14 +110,14 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $fn$
   select exists (
     select 1
     from public.planner_members pm
     where pm.planner_id = target_planner_id
       and pm.user_id = auth.uid()
   );
-$;
+$fn$;
 
 create or replace function public.is_planner_owner(target_planner_id uuid)
 returns boolean
@@ -125,7 +125,7 @@ language sql
 stable
 security definer
 set search_path = public
-as $
+as $fn$
   select exists (
     select 1
     from public.planner_members pm
@@ -133,7 +133,7 @@ as $
       and pm.user_id = auth.uid()
       and pm.role = 'owner'
   );
-$;
+$fn$;
 
 drop policy if exists planners_select_for_members on public.planners;
 create policy planners_select_for_members
