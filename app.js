@@ -2,7 +2,7 @@
   const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = window.APP_CONFIG;
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-  let session=null, planner=null, events=[], wishes=[], itineraries=[], availability=[], wishFilter="open", selectedEvent=null, selectedItinerary=null;
+  let session=null, planner=null, events=[], wishes=[], itineraries=[], availability=[], tasks=[], wishFilter="open", taskFilter="open", selectedEvent=null, selectedItinerary=null;
 
   const $=id=>document.getElementById(id);
   const authPanel=$("authPanel"),plannerSetup=$("plannerSetup"),appShell=$("appShell"),syncStatus=$("syncStatus"),
@@ -75,26 +75,27 @@
 
   async function loadPlannerData(){
     setSync("Syncing…");
-    const [er,wr,ir,ar] = await Promise.all([
+    const [er,wr,ir,ar,tr] = await Promise.all([
       db.from("events").select("*").eq("planner_id",planner.id).order("event_date"),
       db.from("wishes").select("*").eq("planner_id",planner.id).order("created_at"),
       db.from("itineraries").select("*").eq("planner_id",planner.id).order("start_date"),
-      db.from("availability").select("*").eq("planner_id",planner.id).order("availability_date")
+      db.from("availability").select("*").eq("planner_id",planner.id).order("availability_date"),
+      db.from("itinerary_tasks").select("*").eq("planner_id",planner.id).order("sort_order").order("created_at")
     ]);
-    const error=er.error||wr.error||ir.error||ar.error;
+    const error=er.error||wr.error||ir.error||ar.error||tr.error;
     if(error){setSync("Sync error");setupMsg.textContent=error.message;return}
-    events=er.data||[];wishes=wr.data||[];itineraries=ir.data||[];availability=ar.data||[];
+    events=er.data||[];wishes=wr.data||[];itineraries=ir.data||[];availability=ar.data||[];tasks=tr.data||[];
     renderAll();setSync("Synced",true);
   }
 
   function renderAll(){
-    renderHeader();renderCalendar();renderCards();renderWishes();renderPto();renderItineraryOptions();
+    renderHeader();renderCalendar();renderCards();renderWishes();renderPto();renderItineraryOptions();renderTasks();
   }
 
   function renderItineraryOptions(){
-    ["addItinerary","editItinerary"].forEach(id=>{
+    ["addItinerary","editItinerary","taskItinerary"].forEach(id=>{
       const select=$(id),current=select.value;
-      select.innerHTML='<option value="">None</option>';
+      select.innerHTML='<option value="">'+(id==="taskItinerary"?"General":"None")+'</option>';
       itineraries.forEach(it=>{
         const option=document.createElement("option");
         option.value=it.id;option.textContent=it.title;select.appendChild(option);
@@ -108,6 +109,7 @@
     detailForm.classList.add("hidden");
     addForm.classList.add("hidden");
     itineraryForm.classList.add("hidden");
+    $("itineraryTasksPanel").classList.add("hidden");
   }
 
   function openDrawer(){
@@ -197,6 +199,8 @@
     const range=it.start_date===it.end_date?prettyDate(it.start_date):shortDate(it.start_date)+" – "+prettyDate(it.end_date);
     $("detailDate").textContent=range.toUpperCase();$("detailTitle").textContent=it.title;$("detailBadge").textContent=it.badge||"Itinerary";$("detailSummary").textContent=it.summary||"No summary yet.";$("detailItems").innerHTML="";openDrawer();
     const linked=events.filter(e=>e.itinerary_id===it.id);
+    renderItineraryTasks(it.id);
+    $("itineraryTasksPanel").classList.remove("hidden");
     if(!linked.length){
       const empty=document.createElement("div");empty.className="detail-item";empty.innerHTML="<strong>No events yet</strong><span>Add calendar events and link them to this itinerary.</span>";$("detailItems").appendChild(empty);
     }else linked.forEach(ev=>{
@@ -312,6 +316,65 @@
     if(error){$("itineraryMsg").textContent=error.message;return}
     await loadPlannerData();closeDrawer();
   });
+
+  function taskItineraryName(id){
+    return itineraries.find(it=>it.id===id)?.title||"General";
+  }
+
+  function taskMeta(task){
+    const parts=[taskItineraryName(task.itinerary_id)];
+    if(task.due_date)parts.push("Due "+shortDate(task.due_date));
+    return parts.join(" · ");
+  }
+
+  function makeTaskRow(task){
+    const row=document.createElement("div");row.className="task-row"+(task.status==="done"?" done":"");
+    const check=document.createElement("input");check.type="checkbox";check.className="task-check";check.checked=task.status==="done";check.setAttribute("aria-label","Mark "+task.title+" complete");
+    check.onchange=async()=>{await db.from("itinerary_tasks").update({status:check.checked?"done":"todo"}).eq("id",task.id);await loadPlannerData();if(selectedItinerary)openItinerary(itineraries.find(i=>i.id===selectedItinerary.id)||selectedItinerary)};
+    const main=document.createElement("div");main.className="task-main";
+    const title=document.createElement("div");title.className="task-title";title.textContent=task.title;
+    const meta=document.createElement("div");meta.className="task-meta";meta.textContent=taskMeta(task);
+    main.append(title,meta);
+    const del=document.createElement("button");del.type="button";del.className="task-delete";del.textContent="×";del.setAttribute("aria-label","Delete "+task.title);
+    del.onclick=async()=>{if(!confirm("Delete this task?"))return;await db.from("itinerary_tasks").delete().eq("id",task.id);await loadPlannerData();if(selectedItinerary)openItinerary(itineraries.find(i=>i.id===selectedItinerary.id)||selectedItinerary)};
+    row.append(check,main,del);return row;
+  }
+
+  function renderTasks(){
+    const open=tasks.filter(t=>t.status==="todo");
+    $("openTaskCount").textContent=open.length;
+    $("taskSummaryCompact").textContent=open.length+" left";
+    const rows=taskFilter==="open"?open:tasks;
+    const list=$("taskList");list.innerHTML="";
+    if(!rows.length){list.innerHTML='<div class="wish-empty">'+(taskFilter==="open"?"Nothing left — you are caught up.":"No tasks yet.")+'</div>';return}
+    rows.forEach(t=>list.appendChild(makeTaskRow(t)));
+  }
+
+  function renderItineraryTasks(itineraryId){
+    const list=$("itineraryTaskList");list.innerHTML="";
+    const rows=tasks.filter(t=>t.itinerary_id===itineraryId);
+    if(!rows.length){list.innerHTML='<div class="wish-empty">No preparation tasks yet.</div>';return}
+    rows.forEach(t=>list.appendChild(makeTaskRow(t)));
+  }
+
+  $("taskForm").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const payload={planner_id:planner.id,itinerary_id:$("taskItinerary").value||null,title:$("taskTitle").value.trim(),due_date:$("taskDueDate").value||null,status:"todo",created_by:session.user.id};
+    const {error}=await db.from("itinerary_tasks").insert(payload);
+    if(error){alert(error.message);return}
+    e.target.reset();await loadPlannerData();
+  });
+  $("showOpenTasks").onclick=()=>{taskFilter="open";$("showOpenTasks").classList.add("active");$("showAllTasks").classList.remove("active");renderTasks()};
+  $("showAllTasks").onclick=()=>{taskFilter="all";$("showAllTasks").classList.add("active");$("showOpenTasks").classList.remove("active");renderTasks()};
+  $("taskMetricBtn").onclick=()=>{$("taskSection").open=true;$("taskSection").scrollIntoView({behavior:"smooth",block:"start"})};
+  $("addItineraryTaskBtn").onclick=()=>{
+    if(!selectedItinerary)return;
+    closeDrawer();
+    $("taskSection").open=true;
+    $("taskItinerary").value=selectedItinerary.id;
+    $("taskSection").scrollIntoView({behavior:"smooth",block:"start"});
+    setTimeout(()=>$("taskTitle").focus(),250);
+  };
 
   function renderPto(){
     const dates=[...new Set(events.filter(e=>e.is_pto).map(e=>e.event_date))].sort();
