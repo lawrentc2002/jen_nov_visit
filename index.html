@@ -24,10 +24,15 @@
   <div class="auth-card">
     <div class="eyebrow">SHARED PLANNER</div>
     <h2>Sign in to sync</h2>
-    <p>Use your email. Supabase will send you a magic link.</p>
+    <p>Enter your email and we'll send a one-time sign-in code. You can read the code on any device.</p>
     <form id="authForm" class="auth-form">
-      <input id="authEmail" type="email" placeholder="you@example.com" required>
-      <button type="submit">Send magic link</button>
+      <input id="authEmail" type="email" placeholder="you@example.com" autocomplete="email" required>
+      <button type="submit">Send code</button>
+    </form>
+    <form id="otpForm" class="auth-form hidden">
+      <input id="otpCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Verification code" required>
+      <button type="submit">Verify & sign in</button>
+      <button id="changeEmailBtn" type="button" class="secondary-action">Use a different email</button>
     </form>
     <div id="authMsg" class="helper"></div>
   </div>
