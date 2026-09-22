@@ -6,7 +6,7 @@
 
   const $=id=>document.getElementById(id);
   const authPanel=$("authPanel"),plannerSetup=$("plannerSetup"),appShell=$("appShell"),syncStatus=$("syncStatus"),
-  authForm=$("authForm"),authEmail=$("authEmail"),otpForm=$("otpForm"),otpCode=$("otpCode"),authMsg=$("authMsg"),setupMsg=$("setupMsg"),
+  authForm=$("authForm"),authEmail=$("authEmail"),authMsg=$("authMsg"),setupMsg=$("setupMsg"),
   calendar=$("calendar"),tripCards=$("tripCards"),wishList=$("wishList"),openWishCount=$("openWishCount"),
   detailForm=$("detailForm"),addForm=$("addForm"),deletePlanBtn=$("deletePlanBtn");
 
@@ -15,47 +15,10 @@
   const isoDate=d=>d.toISOString().slice(0,10);
   const setSync=(text,ok=false)=>{syncStatus.textContent=text;syncStatus.classList.toggle("ok",ok)};
 
-  let pendingOtpEmail="";
-
   authForm.addEventListener("submit", async e=>{
-    e.preventDefault();
-    pendingOtpEmail=authEmail.value.trim();
-    authMsg.textContent="Sending code…";
-    const {error}=await db.auth.signInWithOtp({
-      email:pendingOtpEmail,
-      options:{shouldCreateUser:true}
-    });
-    if(error){authMsg.textContent=error.message;return}
-    authForm.classList.add("hidden");
-    otpForm.classList.remove("hidden");
-    otpCode.value="";
-    otpCode.focus();
-    authMsg.textContent="Code sent to "+pendingOtpEmail+". Enter it here to sign in.";
-  });
-
-  otpForm.addEventListener("submit", async e=>{
-    e.preventDefault();
-    const token=otpCode.value.trim().replace(/\s+/g,"");
-    if(!pendingOtpEmail){authMsg.textContent="Enter your email first.";return}
-    authMsg.textContent="Verifying…";
-    const {data,error}=await db.auth.verifyOtp({
-      email:pendingOtpEmail,
-      token,
-      type:"email"
-    });
-    if(error){authMsg.textContent=error.message;return}
-    session=data.session;
-    authMsg.textContent="Signed in.";
-    if(session)await afterLogin();
-  });
-
-  $("changeEmailBtn").addEventListener("click",()=>{
-    pendingOtpEmail="";
-    otpCode.value="";
-    otpForm.classList.add("hidden");
-    authForm.classList.remove("hidden");
-    authMsg.textContent="";
-    authEmail.focus();
+    e.preventDefault();authMsg.textContent="Sending…";
+    const {error}=await db.auth.signInWithOtp({email:authEmail.value.trim(),options:{emailRedirectTo:location.origin+location.pathname}});
+    authMsg.textContent=error?error.message:"Magic link sent. Check your email.";
   });
 
   $("signOutBtn").addEventListener("click",async()=>{await db.auth.signOut();location.reload()});
