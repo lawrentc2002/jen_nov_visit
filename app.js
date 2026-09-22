@@ -2,13 +2,13 @@
   const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = window.APP_CONFIG;
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-  let session=null, planner=null, events=[], wishes=[], itineraries=[], availability=[], wishFilter="open", selectedEvent=null;
+  let session=null, planner=null, events=[], wishes=[], itineraries=[], availability=[], wishFilter="open", selectedEvent=null, selectedItinerary=null;
 
   const $=id=>document.getElementById(id);
   const authPanel=$("authPanel"),plannerSetup=$("plannerSetup"),appShell=$("appShell"),syncStatus=$("syncStatus"),
   authForm=$("authForm"),authEmail=$("authEmail"),authMsg=$("authMsg"),setupMsg=$("setupMsg"),
   calendar=$("calendar"),tripCards=$("tripCards"),wishList=$("wishList"),openWishCount=$("openWishCount"),
-  detailForm=$("detailForm"),addForm=$("addForm"),deletePlanBtn=$("deletePlanBtn"),
+  detailForm=$("detailForm"),addForm=$("addForm"),itineraryForm=$("itineraryForm"),deletePlanBtn=$("deletePlanBtn"),
   detailPanel=$("detailPanel"),detailBackdrop=$("detailBackdrop");
 
   const prettyDate=iso=>new Intl.DateTimeFormat("en-CA",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}).format(new Date(iso+"T00:00:00Z"));
@@ -88,7 +88,26 @@
   }
 
   function renderAll(){
-    renderHeader();renderCalendar();renderCards();renderWishes();renderPto();
+    renderHeader();renderCalendar();renderCards();renderWishes();renderPto();renderItineraryOptions();
+  }
+
+  function renderItineraryOptions(){
+    ["addItinerary","editItinerary"].forEach(id=>{
+      const select=$(id),current=select.value;
+      select.innerHTML='<option value="">None</option>';
+      itineraries.forEach(it=>{
+        const option=document.createElement("option");
+        option.value=it.id;option.textContent=it.title;select.appendChild(option);
+      });
+      if([...select.options].some(o=>o.value===current))select.value=current;
+    });
+    $("itineraryCount").textContent=itineraries.length;
+  }
+
+  function hideDrawerForms(){
+    detailForm.classList.add("hidden");
+    addForm.classList.add("hidden");
+    itineraryForm.classList.add("hidden");
   }
 
   function openDrawer(){
@@ -156,36 +175,52 @@
 
   function renderCards(){
     tripCards.innerHTML="";
-    itineraries.filter(i=>i.is_featured).forEach(it=>{
+    $("itineraryCount").textContent=itineraries.length;
+    if(!itineraries.length){
+      tripCards.innerHTML='<div class="wish-empty">No itineraries yet. Create one for a major trip or multi-day plan.</div>';
+      return;
+    }
+    itineraries.forEach(it=>{
       const b=document.createElement("button");b.className="trip-card";
       const range=it.start_date===it.end_date?shortDate(it.start_date):shortDate(it.start_date)+"–"+shortDate(it.end_date);
-      b.innerHTML='<div class="date">'+range.toUpperCase()+'</div><div class="title"></div><div class="sub"></div>';
-      b.querySelector(".title").textContent=it.title;b.querySelector(".sub").textContent=it.summary;b.onclick=()=>openItinerary(it);tripCards.appendChild(b);
+      const count=events.filter(e=>e.itinerary_id===it.id).length;
+      b.innerHTML='<div class="date">'+range.toUpperCase()+'</div><div class="title"></div><div class="sub"></div>'+(it.is_featured?'<span class="featured-tag">Featured</span>':'')+'<span class="event-count"></span>';
+      b.querySelector(".title").textContent=it.title;
+      b.querySelector(".sub").textContent=it.summary||"No summary yet.";
+      b.querySelector(".event-count").textContent=count+" event"+(count===1?"":"s");
+      b.onclick=()=>openItinerary(it);tripCards.appendChild(b);
     });
   }
 
   function openItinerary(it){
-    selectedEvent=null;detailForm.classList.add("hidden");addForm.classList.add("hidden");
+    selectedEvent=null;selectedItinerary=it;hideDrawerForms();
     const range=it.start_date===it.end_date?prettyDate(it.start_date):shortDate(it.start_date)+" – "+prettyDate(it.end_date);
-    $("detailDate").textContent=range.toUpperCase();$("detailTitle").textContent=it.title;$("detailBadge").textContent=it.badge||"Itinerary";$("detailSummary").textContent=it.summary;$("detailItems").innerHTML="";openDrawer();
-    events.filter(e=>e.itinerary_id===it.id).forEach(ev=>{
+    $("detailDate").textContent=range.toUpperCase();$("detailTitle").textContent=it.title;$("detailBadge").textContent=it.badge||"Itinerary";$("detailSummary").textContent=it.summary||"No summary yet.";$("detailItems").innerHTML="";openDrawer();
+    const linked=events.filter(e=>e.itinerary_id===it.id);
+    if(!linked.length){
+      const empty=document.createElement("div");empty.className="detail-item";empty.innerHTML="<strong>No events yet</strong><span>Add calendar events and link them to this itinerary.</span>";$("detailItems").appendChild(empty);
+    }else linked.forEach(ev=>{
       const row=document.createElement("div");row.className="detail-item";
       const h=document.createElement("strong");h.textContent=shortDate(ev.event_date)+" · "+ev.title;
       const s=document.createElement("span");s.textContent=ev.summary||"No notes yet.";row.append(h,s);row.onclick=()=>openRemoteEvent(ev);$("detailItems").appendChild(row);
     });
+    const actions=document.createElement("div");actions.className="detail-action-row";
+    const add=document.createElement("button");add.type="button";add.className="primary-mini";add.textContent="＋ Add event";add.onclick=()=>openAdd(it.start_date,{itineraryId:it.id});
+    const edit=document.createElement("button");edit.type="button";edit.textContent="Edit itinerary";edit.onclick=()=>openItineraryEditor(it);
+    actions.append(add,edit);$("detailItems").appendChild(actions);
   }
 
   function openRemoteEvent(ev){
-    selectedEvent=ev;
+    selectedEvent=ev;selectedItinerary=null;hideDrawerForms();
     $("detailDate").textContent=prettyDate(ev.event_date).toUpperCase();$("detailTitle").textContent=ev.title;$("detailBadge").textContent=ev.is_pto?"PTO":ev.event_type;$("detailSummary").textContent=ev.summary||"No notes yet.";$("detailItems").innerHTML="";openDrawer();
-    $("editKey").value=ev.id;$("editTitle").value=ev.title;$("editSummary").value=ev.summary||"";detailForm.classList.remove("hidden");addForm.classList.add("hidden");$("saveMsg").textContent="";
+    $("editKey").value=ev.id;$("editTitle").value=ev.title;$("editSummary").value=ev.summary||"";$("editItinerary").value=ev.itinerary_id||"";detailForm.classList.remove("hidden");$("saveMsg").textContent="";
   }
 
   function openAdd(date="",prefill=null){
-    selectedEvent=null;detailForm.classList.add("hidden");$("detailItems").innerHTML="";
+    selectedEvent=null;selectedItinerary=null;hideDrawerForms();$("detailItems").innerHTML="";
     $("detailDate").textContent=date?prettyDate(date).toUpperCase():"NEW PLAN";$("detailTitle").textContent="Add something to the calendar";$("detailBadge").textContent="New";$("detailSummary").textContent=prefill?"Schedule this wish on the calendar.":"Create a shared event.";openDrawer();
     $("addDate").min=planner.start_date;$("addDate").max=planner.end_date;$("addDate").value=date;
-    $("addType").value=prefill?.type||"activity";$("addTitle").value=prefill?.title||"";$("addSummary").value=prefill?.notes||"";$("addPto").checked=false;$("sourceWishId").value=prefill?.id||"";$("addMsg").textContent="";addForm.classList.remove("hidden");
+    $("addType").value=prefill?.type||"activity";$("addItinerary").value=prefill?.itineraryId||"";$("addTitle").value=prefill?.title||"";$("addSummary").value=prefill?.notes||"";$("addPto").checked=false;$("sourceWishId").value=prefill?.id||"";$("addMsg").textContent="";addForm.classList.remove("hidden");
   }
 
   $("addPlanBtn").onclick=()=>openAdd("");
@@ -193,7 +228,7 @@
 
   detailForm.addEventListener("submit",async e=>{
     e.preventDefault();if(!selectedEvent)return;$("saveMsg").textContent="Saving…";
-    const {error}=await db.from("events").update({title:$("editTitle").value.trim(),summary:$("editSummary").value.trim()}).eq("id",selectedEvent.id);
+    const {error}=await db.from("events").update({title:$("editTitle").value.trim(),summary:$("editSummary").value.trim(),itinerary_id:$("editItinerary").value||null}).eq("id",selectedEvent.id);
     if(error){$("saveMsg").textContent=error.message;return}
     await loadPlannerData();const updated=events.find(x=>x.id===selectedEvent.id);if(updated)openRemoteEvent(updated);$("saveMsg").textContent="Saved.";
   });
@@ -210,11 +245,72 @@
     if(!date||date<planner.start_date||date>planner.end_date){$("addMsg").textContent="Choose a date inside this planner.";return}
     $("addMsg").textContent="Saving…";
     const wishId=$("sourceWishId").value||null;
-    const payload={planner_id:planner.id,event_date:date,title:$("addTitle").value.trim(),summary:$("addSummary").value.trim(),event_type:$("addType").value,is_pto:$("addPto").checked,source_wish_id:wishId,created_by:session.user.id};
+    const payload={planner_id:planner.id,event_date:date,title:$("addTitle").value.trim(),summary:$("addSummary").value.trim(),event_type:$("addType").value,is_pto:$("addPto").checked,source_wish_id:wishId,itinerary_id:$("addItinerary").value||null,created_by:session.user.id};
     const {data,error}=await db.from("events").insert(payload).select().single();
     if(error){$("addMsg").textContent=error.message;return}
     if(wishId)await db.from("wishes").update({status:"planned",scheduled_event_id:data.id}).eq("id",wishId);
     await loadPlannerData();openRemoteEvent(data);
+  });
+
+  function openItineraryEditor(it=null){
+    selectedEvent=null;selectedItinerary=it;hideDrawerForms();$("detailItems").innerHTML="";
+    const creating=!it;
+    $("detailDate").textContent=creating?"NEW ITINERARY":(shortDate(it.start_date)+" – "+prettyDate(it.end_date)).toUpperCase();
+    $("detailTitle").textContent=creating?"Create an itinerary":it.title;
+    $("detailBadge").textContent="Itinerary";
+    $("detailSummary").textContent=creating?"Create a major plan, then attach calendar events to it.":"Edit the major plan and how it appears.";
+    $("itineraryFormTitle").textContent=creating?"New itinerary":"Edit itinerary";
+    $("itineraryId").value=it?.id||"";
+    $("itineraryTitle").value=it?.title||"";
+    $("itineraryStart").min=planner.start_date;$("itineraryStart").max=planner.end_date;$("itineraryStart").value=it?.start_date||planner.start_date;
+    $("itineraryEnd").min=planner.start_date;$("itineraryEnd").max=planner.end_date;$("itineraryEnd").value=it?.end_date||planner.start_date;
+    $("itineraryBadge").value=it?.badge||"";
+    $("itinerarySummary").value=it?.summary||"";
+    $("itineraryFeatured").checked=it?.is_featured??true;
+    $("deleteItineraryBtn").classList.toggle("hidden",creating);
+    $("itineraryMsg").textContent="";
+    itineraryForm.classList.remove("hidden");openDrawer();
+  }
+
+  $("newItineraryBtn").addEventListener("click",()=>openItineraryEditor());
+  $("cancelItineraryBtn").addEventListener("click",closeDrawer);
+
+  itineraryForm.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const start=$("itineraryStart").value,end=$("itineraryEnd").value;
+    if(!start||!end||start>end){$("itineraryMsg").textContent="End date must be on or after start date.";return}
+    if(start<planner.start_date||end>planner.end_date){$("itineraryMsg").textContent="Keep the itinerary inside the planner date range.";return}
+    $("itineraryMsg").textContent="Saving…";
+    const payload={
+      planner_id:planner.id,
+      title:$("itineraryTitle").value.trim(),
+      start_date:start,
+      end_date:end,
+      badge:$("itineraryBadge").value.trim()||null,
+      summary:$("itinerarySummary").value.trim(),
+      is_featured:$("itineraryFeatured").checked
+    };
+    const id=$("itineraryId").value;
+    let result;
+    if(id) result=await db.from("itineraries").update(payload).eq("id",id).select().single();
+    else result=await db.from("itineraries").insert({...payload,created_by:session.user.id}).select().single();
+    if(result.error){$("itineraryMsg").textContent=result.error.message;return}
+    await loadPlannerData();
+    const saved=itineraries.find(x=>x.id===result.data.id)||result.data;
+    openItinerary(saved);
+  });
+
+  $("deleteItineraryBtn").addEventListener("click",async()=>{
+    const id=$("itineraryId").value;if(!id)return;
+    const linkedCount=events.filter(e=>e.itinerary_id===id).length;
+    const msg=linkedCount
+      ?"Delete this itinerary? Its "+linkedCount+" linked event"+(linkedCount===1?"":"s")+" will stay on the calendar but become standalone."
+      :"Delete this itinerary?";
+    if(!confirm(msg))return;
+    $("itineraryMsg").textContent="Deleting…";
+    const {error}=await db.from("itineraries").delete().eq("id",id);
+    if(error){$("itineraryMsg").textContent=error.message;return}
+    await loadPlannerData();closeDrawer();
   });
 
   function renderPto(){
