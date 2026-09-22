@@ -68,6 +68,10 @@
         <span>Wishes</span>
         <strong id="wishSummaryCompact">0 waiting</strong>
       </div>
+      <button id="taskMetricBtn" class="metric metric-button" type="button">
+        <span>To-do</span>
+        <strong id="taskSummaryCompact">0 left</strong>
+      </button>
       <div class="metric invite-metric">
         <span>Invite</span>
         <code id="plannerInviteCode">—</code>
@@ -108,6 +112,29 @@
       <button id="newItineraryBtn" type="button">＋ New itinerary</button>
     </div>
     <div id="tripCards" class="trip-cards"></div>
+  </details>
+
+  <details class="collapsible task-collapsible" id="taskSection">
+    <summary>
+      <div>
+        <span class="summary-kicker">PREP & BOOKINGS</span>
+        <strong>To-do list</strong>
+      </div>
+      <span class="summary-hint"><span id="openTaskCount">0</span> left</span>
+    </summary>
+    <section class="task-section">
+      <form id="taskForm" class="task-composer">
+        <input id="taskTitle" maxlength="120" placeholder="e.g. Book hotel, rent car, reserve restaurant..." required>
+        <select id="taskItinerary" aria-label="Task itinerary"><option value="">General</option></select>
+        <input id="taskDueDate" type="date" aria-label="Due date">
+        <button type="submit">Add task</button>
+      </form>
+      <div class="task-filter-row">
+        <button id="showOpenTasks" type="button" class="filter active">Open</button>
+        <button id="showAllTasks" type="button" class="filter">All</button>
+      </div>
+      <div id="taskList" class="task-list"></div>
+    </section>
   </details>
 
   <details class="collapsible wish-collapsible" id="wishSection">
@@ -169,6 +196,13 @@
   </div>
   <p id="detailSummary" class="summary">Choose a trip or calendar event to see the details.</p>
   <div id="detailItems" class="detail-items"></div>
+  <div id="itineraryTasksPanel" class="itinerary-tasks-panel hidden">
+    <div class="subsection-head">
+      <div><span class="summary-kicker">PREPARATION</span><strong>To-do</strong></div>
+      <button id="addItineraryTaskBtn" type="button">＋ Add</button>
+    </div>
+    <div id="itineraryTaskList" class="drawer-task-list"></div>
+  </div>
 
   <form id="detailForm" class="editor hidden">
     <input id="editKey" type="hidden">
