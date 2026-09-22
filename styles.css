@@ -159,3 +159,27 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .detail-action-row button{border:1px solid var(--border);background:#fff;border-radius:9px;padding:7px 10px;font-size:11px;font-weight:750;color:var(--text)}
 .detail-action-row .primary-mini{background:var(--accent);border-color:var(--accent);color:#fff}
 @media(max-width:620px){.section-action-row{align-items:flex-start;flex-direction:column}.date-pair{grid-template-columns:1fr}}
+
+
+.metric-button{font:inherit;text-align:left;cursor:pointer;color:var(--text)}
+.metric-button:hover{border-color:#cec6ba;background:#fff}
+.task-section{padding:0 15px 16px}
+.task-composer{display:grid;grid-template-columns:minmax(0,1fr) 180px 150px auto;gap:8px;padding-bottom:12px}
+.task-composer input,.task-composer select{min-width:0;border:1px solid var(--border);background:#fff;border-radius:10px;padding:9px 10px;color:var(--text)}
+.task-composer button,.subsection-head button{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:9px 12px;font-weight:750}
+.task-filter-row{display:flex;gap:4px;margin-bottom:9px}
+.task-filter-row .filter{border:1px solid var(--border);background:#fff;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;color:var(--muted)}
+.task-filter-row .filter.active{background:var(--accent-2);color:var(--accent);border-color:#cbdcd4}
+.task-list,.drawer-task-list{display:grid;gap:7px}
+.task-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--border);background:#fff;border-radius:11px;padding:9px 10px}
+.task-row.done .task-title{text-decoration:line-through;color:#92968f}
+.task-check{width:20px;height:20px;accent-color:var(--accent)}
+.task-main{min-width:0}.task-title{font-weight:750;font-size:13px}.task-meta{font-size:10px;color:var(--muted);margin-top:2px}
+.task-delete{border:0;background:transparent;color:#aaa39a;font-size:18px;padding:3px 5px}.task-delete:hover{color:var(--danger)}
+.itinerary-tasks-panel{margin-top:17px;padding-top:15px;border-top:1px solid var(--border)}
+.subsection-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.subsection-head strong{display:block;font-size:15px;margin-top:2px}
+.subsection-head button{font-size:11px;padding:6px 9px}
+.drawer-task-list .task-row{padding:8px 9px}
+@media(max-width:900px){.task-composer{grid-template-columns:1fr 1fr}.task-composer button{grid-column:1/-1}}
+@media(max-width:620px){.task-composer{grid-template-columns:1fr}.task-composer button{grid-column:auto}.workspace-metrics{grid-template-columns:1fr 1fr}.invite-metric{grid-column:1/-1}}
