@@ -98,11 +98,15 @@
   <details class="collapsible" id="featuredSection">
     <summary>
       <div>
-        <span class="summary-kicker">TRIP HIGHLIGHTS</span>
-        <strong>Featured plans</strong>
+        <span class="summary-kicker">MAJOR PLANS</span>
+        <strong>Itineraries</strong>
       </div>
-      <span class="summary-hint">Open to browse</span>
+      <span class="summary-hint"><span id="itineraryCount">0</span> itineraries</span>
     </summary>
+    <div class="section-action-row">
+      <p>Group related days, events and future to-dos under one major plan.</p>
+      <button id="newItineraryBtn" type="button">＋ New itinerary</button>
+    </div>
     <div id="tripCards" class="trip-cards"></div>
   </details>
 
@@ -170,6 +174,9 @@
     <input id="editKey" type="hidden">
     <label>Title<input id="editTitle" maxlength="70" required></label>
     <label>Notes<textarea id="editSummary" rows="4" maxlength="400" required></textarea></label>
+    <label>Belongs to itinerary
+      <select id="editItinerary"><option value="">None</option></select>
+    </label>
     <div class="form-actions">
       <button type="submit">Save details</button>
       <button id="deletePlanBtn" type="button" class="danger-outline">Delete</button>
@@ -182,6 +189,9 @@
     <input id="sourceWishId" type="hidden">
     <label>Date<input id="addDate" type="date" required></label>
     <label>Type<select id="addType"><option value="activity">Activity</option><option value="trip">Trip / PTO</option><option value="local">Holiday / local</option></select></label>
+    <label>Belongs to itinerary
+      <select id="addItinerary"><option value="">None</option></select>
+    </label>
     <label>Title<input id="addTitle" maxlength="70" required></label>
     <label>Notes<textarea id="addSummary" rows="4" maxlength="400"></textarea></label>
     <label class="check-row"><input id="addPto" type="checkbox"> Mark as PTO</label>
@@ -189,6 +199,25 @@
       <button type="submit">Add to calendar</button>
       <button id="cancelAddBtn" type="button" class="secondary">Cancel</button>
       <span id="addMsg"></span>
+    </div>
+  </form>
+
+  <form id="itineraryForm" class="editor hidden">
+    <input id="itineraryId" type="hidden">
+    <h3 id="itineraryFormTitle">Itinerary</h3>
+    <label>Title<input id="itineraryTitle" maxlength="90" required></label>
+    <div class="date-pair">
+      <label>Start date<input id="itineraryStart" type="date" required></label>
+      <label>End date<input id="itineraryEnd" type="date" required></label>
+    </div>
+    <label>Badge<input id="itineraryBadge" maxlength="40" placeholder="e.g. Road trip, Toronto"></label>
+    <label>Summary<textarea id="itinerarySummary" rows="4" maxlength="500" placeholder="What is this trip about?"></textarea></label>
+    <label class="check-row"><input id="itineraryFeatured" type="checkbox"> Show prominently in itineraries</label>
+    <div class="form-actions">
+      <button type="submit">Save itinerary</button>
+      <button id="deleteItineraryBtn" type="button" class="danger-outline hidden">Delete</button>
+      <button id="cancelItineraryBtn" type="button" class="secondary">Cancel</button>
+      <span id="itineraryMsg"></span>
     </div>
   </form>
 
