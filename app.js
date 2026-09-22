@@ -8,7 +8,8 @@
   const authPanel=$("authPanel"),plannerSetup=$("plannerSetup"),appShell=$("appShell"),syncStatus=$("syncStatus"),
   authForm=$("authForm"),authEmail=$("authEmail"),authMsg=$("authMsg"),setupMsg=$("setupMsg"),
   calendar=$("calendar"),tripCards=$("tripCards"),wishList=$("wishList"),openWishCount=$("openWishCount"),
-  detailForm=$("detailForm"),addForm=$("addForm"),deletePlanBtn=$("deletePlanBtn");
+  detailForm=$("detailForm"),addForm=$("addForm"),deletePlanBtn=$("deletePlanBtn"),
+  detailPanel=$("detailPanel"),detailBackdrop=$("detailBackdrop");
 
   const prettyDate=iso=>new Intl.DateTimeFormat("en-CA",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}).format(new Date(iso+"T00:00:00Z"));
   const shortDate=iso=>new Intl.DateTimeFormat("en-CA",{month:"short",day:"numeric",timeZone:"UTC"}).format(new Date(iso+"T00:00:00Z"));
@@ -90,6 +91,24 @@
     renderHeader();renderCalendar();renderCards();renderWishes();renderPto();
   }
 
+  function openDrawer(){
+    detailPanel.classList.add("open");
+    detailPanel.setAttribute("aria-hidden","false");
+    detailBackdrop.classList.remove("hidden");
+    document.body.style.overflow="hidden";
+  }
+
+  function closeDrawer(){
+    detailPanel.classList.remove("open");
+    detailPanel.setAttribute("aria-hidden","true");
+    detailBackdrop.classList.add("hidden");
+    document.body.style.overflow="";
+  }
+
+  $("closeDetailBtn").addEventListener("click",closeDrawer);
+  detailBackdrop.addEventListener("click",closeDrawer);
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer()});
+
   function showApp(){
     authPanel.classList.add("hidden");plannerSetup.classList.add("hidden");appShell.classList.remove("hidden");
     $("plannerDisplayName").textContent=planner.name;$("plannerInviteCode").textContent=planner.invite_code;
@@ -148,7 +167,7 @@
   function openItinerary(it){
     selectedEvent=null;detailForm.classList.add("hidden");addForm.classList.add("hidden");
     const range=it.start_date===it.end_date?prettyDate(it.start_date):shortDate(it.start_date)+" – "+prettyDate(it.end_date);
-    $("detailDate").textContent=range.toUpperCase();$("detailTitle").textContent=it.title;$("detailBadge").textContent=it.badge||"Itinerary";$("detailSummary").textContent=it.summary;$("detailItems").innerHTML="";
+    $("detailDate").textContent=range.toUpperCase();$("detailTitle").textContent=it.title;$("detailBadge").textContent=it.badge||"Itinerary";$("detailSummary").textContent=it.summary;$("detailItems").innerHTML="";openDrawer();
     events.filter(e=>e.itinerary_id===it.id).forEach(ev=>{
       const row=document.createElement("div");row.className="detail-item";
       const h=document.createElement("strong");h.textContent=shortDate(ev.event_date)+" · "+ev.title;
@@ -158,19 +177,19 @@
 
   function openRemoteEvent(ev){
     selectedEvent=ev;
-    $("detailDate").textContent=prettyDate(ev.event_date).toUpperCase();$("detailTitle").textContent=ev.title;$("detailBadge").textContent=ev.is_pto?"PTO":ev.event_type;$("detailSummary").textContent=ev.summary||"No notes yet.";$("detailItems").innerHTML="";
+    $("detailDate").textContent=prettyDate(ev.event_date).toUpperCase();$("detailTitle").textContent=ev.title;$("detailBadge").textContent=ev.is_pto?"PTO":ev.event_type;$("detailSummary").textContent=ev.summary||"No notes yet.";$("detailItems").innerHTML="";openDrawer();
     $("editKey").value=ev.id;$("editTitle").value=ev.title;$("editSummary").value=ev.summary||"";detailForm.classList.remove("hidden");addForm.classList.add("hidden");$("saveMsg").textContent="";
   }
 
   function openAdd(date="",prefill=null){
     selectedEvent=null;detailForm.classList.add("hidden");$("detailItems").innerHTML="";
-    $("detailDate").textContent=date?prettyDate(date).toUpperCase():"NEW PLAN";$("detailTitle").textContent="Add something to the calendar";$("detailBadge").textContent="New";$("detailSummary").textContent=prefill?"Schedule this wish on the calendar.":"Create a shared event.";
+    $("detailDate").textContent=date?prettyDate(date).toUpperCase():"NEW PLAN";$("detailTitle").textContent="Add something to the calendar";$("detailBadge").textContent="New";$("detailSummary").textContent=prefill?"Schedule this wish on the calendar.":"Create a shared event.";openDrawer();
     $("addDate").min=planner.start_date;$("addDate").max=planner.end_date;$("addDate").value=date;
     $("addType").value=prefill?.type||"activity";$("addTitle").value=prefill?.title||"";$("addSummary").value=prefill?.notes||"";$("addPto").checked=false;$("sourceWishId").value=prefill?.id||"";$("addMsg").textContent="";addForm.classList.remove("hidden");
   }
 
   $("addPlanBtn").onclick=()=>openAdd("");
-  $("cancelAddBtn").onclick=()=>addForm.classList.add("hidden");
+  $("cancelAddBtn").onclick=()=>{addForm.classList.add("hidden");closeDrawer()};
 
   detailForm.addEventListener("submit",async e=>{
     e.preventDefault();if(!selectedEvent)return;$("saveMsg").textContent="Saving…";
@@ -183,7 +202,7 @@
     if(!selectedEvent)return;if(!confirm("Delete this shared plan?"))return;
     const {error}=await db.from("events").delete().eq("id",selectedEvent.id);
     if(error){$("saveMsg").textContent=error.message;return}
-    await loadPlannerData();detailForm.classList.add("hidden");$("detailTitle").textContent="Trip & event details";$("detailSummary").textContent="Choose a planned date to see details.";
+    await loadPlannerData();detailForm.classList.add("hidden");$("detailTitle").textContent="Trip & event details";$("detailSummary").textContent="Choose a planned date to see details.";closeDrawer();
   });
 
   addForm.addEventListener("submit",async e=>{
@@ -203,6 +222,7 @@
     const used=dates.length,allowance=planner.pto_allowance||0,remaining=Math.max(0,allowance-used);
     $("ptoDates").textContent=dates.length?"PTO dates: "+dates.map(shortDate).join(", "):"No PTO days planned yet.";
     $("ptoSummary").innerHTML="<strong>"+used+" / "+allowance+" days planned</strong>"+(allowance?(" · "+remaining+" remaining"):"");
+    $("ptoSummaryCompact").textContent=allowance?used+" / "+allowance+" days":used+" days";
   }
 
   function renderWishes(){
