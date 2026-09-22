@@ -8,14 +8,14 @@
 </head>
 <body>
 <header class="topbar">
-  <div>
+  <div class="brand-block">
     <div class="eyebrow">DREAM TRAVEL LIFE</div>
     <h1 id="pageTitle">Travel Planner</h1>
     <p id="plannerDateRange">Shared trips, PTO, activities and wishes</p>
   </div>
   <div class="actions">
     <span id="syncStatus" class="sync-pill">Not connected</span>
-    <button id="addPlanBtn" class="primary">+ Add plan</button>
+    <button id="addPlanBtn" class="primary">＋ Add plan</button>
     <button id="signOutBtn" class="secondary hidden">Sign out</button>
   </div>
 </header>
@@ -53,20 +53,33 @@
   </div>
 </section>
 
-<main id="appShell" class="layout hidden">
-  <section>
-    <div class="share-banner">
-      <div>
-        <div class="eyebrow">SHARED WORKSPACE</div>
-        <strong id="plannerDisplayName">Planner</strong>
-      </div>
-      <div class="share-code-wrap">Invite code <code id="plannerInviteCode">—</code></div>
+<main id="appShell" class="app-shell hidden">
+  <section class="workspace-bar">
+    <div class="workspace-title">
+      <div class="eyebrow">SHARED WORKSPACE</div>
+      <strong id="plannerDisplayName">Planner</strong>
     </div>
+    <div class="workspace-metrics">
+      <div class="metric">
+        <span>PTO</span>
+        <strong id="ptoSummaryCompact">—</strong>
+      </div>
+      <div class="metric">
+        <span>Wishes</span>
+        <strong id="wishSummaryCompact">0 waiting</strong>
+      </div>
+      <div class="metric invite-metric">
+        <span>Invite</span>
+        <code id="plannerInviteCode">—</code>
+      </div>
+    </div>
+  </section>
 
-    <div class="panel-head">
+  <section class="calendar-section">
+    <div class="section-head">
       <div>
+        <div class="eyebrow">YOUR TIME TOGETHER</div>
         <h2>Calendar</h2>
-        <p>Planner dates, availability and events are loaded from Supabase.</p>
       </div>
       <div class="legend">
         <span><i class="dot work"></i>Working</span>
@@ -80,23 +93,39 @@
       <div class="weekday-row"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div></div>
       <div id="calendar" class="calendar"></div>
     </div>
+  </section>
 
+  <details class="collapsible" id="featuredSection">
+    <summary>
+      <div>
+        <span class="summary-kicker">TRIP HIGHLIGHTS</span>
+        <strong>Featured plans</strong>
+      </div>
+      <span class="summary-hint">Open to browse</span>
+    </summary>
     <div id="tripCards" class="trip-cards"></div>
+  </details>
+
+  <details class="collapsible wish-collapsible" id="wishSection">
+    <summary>
+      <div>
+        <span class="summary-kicker">IDEA INBOX</span>
+        <strong>Wish Board</strong>
+      </div>
+      <span class="summary-hint"><span id="openWishCount">0</span> waiting</span>
+    </summary>
 
     <section class="wish-section">
       <div class="wish-hero">
         <div class="wish-icon">✨</div>
         <div class="wish-copy">
-          <div class="eyebrow">IDEA INBOX</div>
           <h2>Make a wish</h2>
-          <p>Anything added here is shared between planner members.</p>
+          <p>Add anything you want to fit into the visit. Both planner members can see it.</p>
         </div>
-        <div class="wish-count"><strong id="openWishCount">0</strong><span>waiting</span></div>
       </div>
 
       <form id="wishForm" class="wish-composer">
-        <div class="wish-prompt">What do you want to do?</div>
-        <input id="wishTitle" class="wish-title-input" maxlength="90" placeholder="e.g. Go skating, eat hotpot, see Banff..." required>
+        <input id="wishTitle" class="wish-title-input" maxlength="90" placeholder="Go skating, eat hotpot, see Banff..." required>
         <div class="wish-options">
           <select id="wishCategory" aria-label="Wish category">
             <option value="activity">🎯 Activity</option>
@@ -105,8 +134,8 @@
             <option value="shopping">🛍️ Shopping</option>
             <option value="other">💭 Other</option>
           </select>
-          <input id="wishNotes" maxlength="300" placeholder="Optional note — place, link, why you want to go...">
-          <button type="submit">Add to wishes <span>→</span></button>
+          <input id="wishNotes" maxlength="300" placeholder="Optional note — place, link, why...">
+          <button type="submit">Add wish</button>
         </div>
       </form>
 
@@ -116,57 +145,59 @@
           <button id="showResolvedWishes" type="button" class="filter">Planned</button>
           <button id="showAllWishes" type="button" class="filter">All</button>
         </div>
-        <div class="wish-flow"><span>Wish</span><b>→</b><span>Pick a day</span><b>→</b><span>Planned ✓</span></div>
+        <div class="wish-flow">Wish → Pick a day → Planned ✓</div>
       </div>
-
       <div id="wishList" class="wish-list"></div>
     </section>
-  </section>
-
-  <aside class="detail-panel">
-    <div class="detail-head">
-      <div>
-        <div id="detailDate" class="eyebrow">SELECT A PLAN</div>
-        <h2 id="detailTitle">Trip & event details</h2>
-      </div>
-      <span id="detailBadge" class="badge">Planner</span>
-    </div>
-    <p id="detailSummary" class="summary">Choose a trip card or planned date to see the itinerary.</p>
-    <div id="detailItems" class="detail-items"></div>
-
-    <form id="detailForm" class="editor hidden">
-      <input id="editKey" type="hidden">
-      <label>Title<input id="editTitle" maxlength="70" required></label>
-      <label>Notes<textarea id="editSummary" rows="4" maxlength="400" required></textarea></label>
-      <div class="form-actions">
-        <button type="submit">Save details</button>
-        <button id="deletePlanBtn" type="button" class="danger-outline">Delete</button>
-        <span id="saveMsg"></span>
-      </div>
-    </form>
-
-    <form id="addForm" class="editor hidden">
-      <h3>Add a plan</h3>
-      <input id="sourceWishId" type="hidden">
-      <label>Date<input id="addDate" type="date" required></label>
-      <label>Type<select id="addType"><option value="activity">Activity</option><option value="trip">Trip / PTO</option><option value="local">Holiday / local</option></select></label>
-      <label>Title<input id="addTitle" maxlength="70" required></label>
-      <label>Notes<textarea id="addSummary" rows="4" maxlength="400"></textarea></label>
-      <label class="check-row"><input id="addPto" type="checkbox"> Mark as PTO</label>
-      <div class="form-actions">
-        <button type="submit">Add to calendar</button>
-        <button id="cancelAddBtn" type="button" class="secondary">Cancel</button>
-        <span id="addMsg"></span>
-      </div>
-    </form>
-
-    <div class="pto-card">
-      <h3>PTO plan</h3>
-      <p id="ptoDates">No PTO days planned yet.</p>
-      <p id="ptoSummary"><strong>0 / 0 days planned</strong></p>
-    </div>
-  </aside>
+  </details>
 </main>
+
+<div id="detailBackdrop" class="drawer-backdrop hidden"></div>
+<aside id="detailPanel" class="detail-panel" aria-hidden="true">
+  <button id="closeDetailBtn" class="drawer-close" type="button" aria-label="Close details">×</button>
+
+  <div class="detail-head">
+    <div>
+      <div id="detailDate" class="eyebrow">SELECT A PLAN</div>
+      <h2 id="detailTitle">Trip & event details</h2>
+    </div>
+    <span id="detailBadge" class="badge">Planner</span>
+  </div>
+  <p id="detailSummary" class="summary">Choose a trip or calendar event to see the details.</p>
+  <div id="detailItems" class="detail-items"></div>
+
+  <form id="detailForm" class="editor hidden">
+    <input id="editKey" type="hidden">
+    <label>Title<input id="editTitle" maxlength="70" required></label>
+    <label>Notes<textarea id="editSummary" rows="4" maxlength="400" required></textarea></label>
+    <div class="form-actions">
+      <button type="submit">Save details</button>
+      <button id="deletePlanBtn" type="button" class="danger-outline">Delete</button>
+      <span id="saveMsg"></span>
+    </div>
+  </form>
+
+  <form id="addForm" class="editor hidden">
+    <h3>Add a plan</h3>
+    <input id="sourceWishId" type="hidden">
+    <label>Date<input id="addDate" type="date" required></label>
+    <label>Type<select id="addType"><option value="activity">Activity</option><option value="trip">Trip / PTO</option><option value="local">Holiday / local</option></select></label>
+    <label>Title<input id="addTitle" maxlength="70" required></label>
+    <label>Notes<textarea id="addSummary" rows="4" maxlength="400"></textarea></label>
+    <label class="check-row"><input id="addPto" type="checkbox"> Mark as PTO</label>
+    <div class="form-actions">
+      <button type="submit">Add to calendar</button>
+      <button id="cancelAddBtn" type="button" class="secondary">Cancel</button>
+      <span id="addMsg"></span>
+    </div>
+  </form>
+
+  <div class="pto-card">
+    <div class="eyebrow">PTO SNAPSHOT</div>
+    <p id="ptoDates">No PTO days planned yet.</p>
+    <p id="ptoSummary"><strong>0 / 0 days planned</strong></p>
+  </div>
+</aside>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
