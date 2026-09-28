@@ -296,12 +296,27 @@
     };
     const id=$("itineraryId").value;
     let result;
-    if(id) result=await db.from("itineraries").update(payload).eq("id",id).select().single();
-    else result=await db.from("itineraries").insert({...payload,created_by:session.user.id}).select().single();
+    if(id){
+      result=await db.rpc("update_itinerary_and_shift_events",{
+        itinerary_uuid:id,
+        new_title:payload.title,
+        new_start_date:payload.start_date,
+        new_end_date:payload.end_date,
+        new_badge:payload.badge,
+        new_summary:payload.summary,
+        new_is_featured:payload.is_featured
+      });
+      if(!result.error){
+        const updated=Array.isArray(result.data)?result.data[0]:result.data;
+        result={data:updated,error:null};
+      }
+    } else {
+      result=await db.from("itineraries").insert({...payload,created_by:session.user.id}).select().single();
+    }
     if(result.error){$("itineraryMsg").textContent=result.error.message;return}
     await loadPlannerData();
-    const saved=itineraries.find(x=>x.id===result.data.id)||result.data;
-    openItinerary(saved);
+    const saved=itineraries.find(x=>x.id===id)||itineraries.find(x=>x.id===result.data?.id)||result.data;
+    if(saved)openItinerary(saved);else closeDrawer();
   });
 
   $("deleteItineraryBtn").addEventListener("click",async()=>{
